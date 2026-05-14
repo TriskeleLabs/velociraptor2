@@ -1,4 +1,4 @@
-name: Build Linux i386 (v0.73.3)
+name: Build Linux i386 (v0.76.5)
 
 on:
   workflow_dispatch:
@@ -7,15 +7,15 @@ jobs:
   build-i386:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout v0.73.3
+      - name: Checkout v0.76.5
         uses: actions/checkout@v4
         with:
-          ref: v0.73.3
+          ref: v0.76.5
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'
 
       - name: Install 32-bit C toolchain
         run: |
@@ -27,15 +27,16 @@ jobs:
         run: |
           go version
           gcc -v 2>&1 | tail -1
+          go env GOOS GOARCH
 
-      - name: Generate embedded assets (b0x)
+      - name: Generate embedded assets (fileb0x)
         run: |
-          go install github.com/Velocidex/fileb0x@latest
+          go install github.com/UnnoTed/fileb0x@latest
           export PATH="$PATH:$(go env GOPATH)/bin"
+          which fileb0x
           fileb0x artifacts/b0x.yaml
           fileb0x config/b0x.yaml
           fileb0x crypto/b0x.yaml
-          # gui b0x is optional for a client-only build; include if file exists
           [ -f gui/velociraptor/b0x.yaml ] && fileb0x gui/velociraptor/b0x.yaml || true
 
       - name: Build velociraptor for linux/386
@@ -50,14 +51,15 @@ jobs:
           go build \
             -tags 'server_vql extras release' \
             -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=${TIMESTAMP}" \
-            -o output/velociraptor-v0.73.3-linux-386 \
+            -o output/velociraptor-v0.76.5-linux-386 \
             ./bin
-          file output/velociraptor-v0.73.3-linux-386
+          file output/velociraptor-v0.76.5-linux-386
           ls -lh output/
 
       - name: Upload binary artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: velociraptor-v0.73.3-linux-386
-          path: output/velociraptor-v0.73.3-linux-386
+          name: velociraptor-v0.76.5-linux-386
+          path: output/velociraptor-v0.76.5-linux-386
           retention-days: 30
