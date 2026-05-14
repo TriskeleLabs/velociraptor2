@@ -1,0 +1,44 @@
+name: Build Linux i386
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  build-i386:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.3'        # <-- match go.mod
+
+      - name: Show toolchain info
+        run: |
+          go version
+          go env GOOS GOARCH
+
+      - name: Build velociraptor for linux/386
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: 386
+        run: |
+          mkdir -p output
+          go build \
+            -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=$(date -u +%FT%TZ)" \
+            -o output/velociraptor-linux-386 \
+            ./bin
+          file output/velociraptor-linux-386
+          ls -lh output/
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: velociraptor-linux-386
+          path: output/velociraptor-linux-386
+          retention-days: 30
