@@ -25,17 +25,34 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install 32-bit C toolchain
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y gcc-multilib libc6-dev-i386
 
-      - name: Show toolchain info
+      - name: Build GUI assets (React/webpack bundle)
+        working-directory: gui/velociraptor
         run: |
-          go version
-          gcc -v 2>&1 | tail -1
-          go env GOOS GOARCH
+          npm install --legacy-peer-deps
+          npm run build || (cat package.json | head -50 && exit 1)
+          ls -la build/ || echo "No build directory!"
+
+      - name: Inspect b0x configs
+        run: |
+          echo "=== artifacts/b0x.yaml ==="
+          cat artifacts/b0x.yaml | head -30
+          echo "=== config/b0x.yaml ==="
+          cat config/b0x.yaml | head -30
+          echo "=== crypto/b0x.yaml ==="
+          cat crypto/b0x.yaml | head -30
+          echo "=== gui/velociraptor/b0x.yaml ==="
+          cat gui/velociraptor/b0x.yaml | head -30
 
       - name: Generate embedded assets (fileb0x)
         run: |
@@ -45,7 +62,9 @@ jobs:
           fileb0x artifacts/b0x.yaml
           fileb0x config/b0x.yaml
           fileb0x crypto/b0x.yaml
-          [ -f gui/velociraptor/b0x.yaml ] && fileb0x gui/velociraptor/b0x.yaml || true
+          fileb0x gui/velociraptor/b0x.yaml
+          echo "=== Generated files ==="
+          find . -name "ab0x.go" -o -name "*assets*.go" 2>/dev/null | head -30
 
       - name: Build velociraptor for linux/386
         env:
