@@ -1,45 +1,63 @@
-name: Build Linux i386
+name: Build Linux i386 (v0.73.3)
 
 on:
   workflow_dispatch:
-  push:
-    tags: [ 'v*' ]
 
 jobs:
   build-i386:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout v0.73.3
         uses: actions/checkout@v4
+        with:
+          ref: v0.73.3
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.3'        # <-- match go.mod
+          go-version: '1.21'
+
+      - name: Install 32-bit C toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib libc6-dev-i386
 
       - name: Show toolchain info
         run: |
           go version
-          go env GOOS GOARCH
+          gcc -v 2>&1 | tail -1
+
+      - name: Generate embedded assets (b0x)
+        run: |
+          go install github.com/Velocidex/fileb0x@latest
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          fileb0x artifacts/b0x.yaml
+          fileb0x config/b0x.yaml
+          fileb0x crypto/b0x.yaml
+          # gui b0x is optional for a client-only build; include if file exists
+          [ -f gui/velociraptor/b0x.yaml ] && fileb0x gui/velociraptor/b0x.yaml || true
 
       - name: Build velociraptor for linux/386
         env:
-          CGO_ENABLED: 0
+          CGO_ENABLED: "1"
           GOOS: linux
-          GOARCH: 386
+          GOARCH: "386"
+          CC: "gcc -m32"
         run: |
           mkdir -p output
+          TIMESTAMP=$(date -u +%FT%TZ)
           go build \
-            -tags 'release' \
-            -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=$(date -u +%FT%TZ)" \
-            -o output/velociraptor-linux-386 \
+            -tags 'server_vql extras release' \
+            -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=${TIMESTAMP}" \
+            -o output/velociraptor-v0.73.3-linux-386 \
             ./bin
-          file output/velociraptor-linux-386
+          file output/velociraptor-v0.73.3-linux-386
           ls -lh output/
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: velociraptor-linux-386
-          path: output/velociraptor-linux-386
+          name: velociraptor-v0.73.3-linux-386
+          path: output/velociraptor-v0.73.3-linux-386
           retention-days: 30
