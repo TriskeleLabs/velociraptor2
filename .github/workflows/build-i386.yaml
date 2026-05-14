@@ -1,4 +1,4 @@
-name: Build Linux i386 (v0.76.5)
+name: Build Linux i386 (master)
 
 on:
   workflow_dispatch:
@@ -7,10 +7,18 @@ jobs:
   build-i386:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout v0.76.5
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
-          ref: v0.76.5
+          ref: master
+          fetch-depth: 1
+
+      - name: Record commit SHA
+        id: sha
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          echo "short=${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "Building from commit: ${SHORT}"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -48,18 +56,21 @@ jobs:
         run: |
           mkdir -p output
           TIMESTAMP=$(date -u +%FT%TZ)
+          COMMIT="${{ steps.sha.outputs.short }}"
           go build \
             -tags 'server_vql extras release' \
-            -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=${TIMESTAMP}" \
-            -o output/velociraptor-v0.76.5-linux-386 \
+            -ldflags "-s -w \
+              -X www.velocidex.com/golang/velociraptor/config.build_time=${TIMESTAMP} \
+              -X www.velocidex.com/golang/velociraptor/config.commit_hash=${COMMIT}" \
+            -o output/velociraptor-master-${COMMIT}-linux-386 \
             ./bin
-          file output/velociraptor-v0.76.5-linux-386
+          file output/velociraptor-master-${COMMIT}-linux-386
           ls -lh output/
 
       - name: Upload binary artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: velociraptor-v0.76.5-linux-386
-          path: output/velociraptor-v0.76.5-linux-386
+          name: velociraptor-master-${{ steps.sha.outputs.short }}-linux-386
+          path: output/velociraptor-master-${{ steps.sha.outputs.short }}-linux-386
           retention-days: 30
