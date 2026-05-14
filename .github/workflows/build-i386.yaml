@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p output
           go build \
+            -tags 'release' \
             -ldflags "-s -w -X www.velocidex.com/golang/velociraptor/config.build_time=$(date -u +%FT%TZ)" \
             -o output/velociraptor-linux-386 \
             ./bin
